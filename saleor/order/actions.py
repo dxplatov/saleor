@@ -652,14 +652,7 @@ def create_refund_fulfillment(
     return refunded_fulfillment
 
 
-@transaction.atomic
-def create_replace_order(
-    requester: Optional["User"],
-    original_order: "Order",
-    order_lines_to_replace: List[OrderLineData],
-    fulfillment_lines_to_replace: List[FulfillmentLineData],
-) -> "Order":
-    """Create draft order with lines to replace."""
+def _populate_replace_order_fields(original_order: "Order"):
     replace_order = Order()
     replace_order.status = OrderStatus.DRAFT
     replace_order.user_id = original_order.user_id
@@ -680,7 +673,19 @@ def create_replace_order(
         replace_order.shipping_address.save()
     replace_order.save()
     original_order.refresh_from_db()
+    return replace_order
 
+
+@transaction.atomic
+def create_replace_order(
+    requester: Optional["User"],
+    original_order: "Order",
+    order_lines_to_replace: List[OrderLineData],
+    fulfillment_lines_to_replace: List[FulfillmentLineData],
+) -> "Order":
+    """Create draft order with lines to replace."""
+
+    replace_order = _populate_replace_order_fields(original_order)
     order_line_to_create: Dict[OrderLineIDType, OrderLine] = dict()
 
     # iterate over lines without fulfillment to get the items for replace.
